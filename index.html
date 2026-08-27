@@ -113,12 +113,6 @@
       gap: 12px;
     }
 
-    .grid-3 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-    }
-
     .stat-box {
       background: var(--bg-card);
       border-radius: 12px;
@@ -208,10 +202,6 @@
       font-size: 1rem;
       font-weight: 700;
       color: var(--danger);
-    }
-
-    .tx-amount.income {
-      color: var(--success);
     }
 
     .delete-btn {
@@ -425,7 +415,9 @@
           <button class="chip" onclick="setCategoryFilter('Food', this)">🍔 Food</button>
           <button class="chip" onclick="setCategoryFilter('Travel', this)">🚕 Travel</button>
           <button class="chip" onclick="setCategoryFilter('Shopping', this)">🛍️ Shopping</button>
+          <button class="chip" onclick="setCategoryFilter('Recharge', this)">📱 Recharge</button>
           <button class="chip" onclick="setCategoryFilter('Bills', this)">🏠 Bills</button>
+          <button class="chip" onclick="setCategoryFilter('Other', this)">📦 Other</button>
         </div>
       </div>
 
@@ -477,11 +469,11 @@
         <div class="section-title">Monthly Budget & Income</div>
         <div class="form-group">
           <label>Monthly Budget Limit (₹)</label>
-          <input type="number" id="setting-budget" class="form-input" />
+          <input type="number" id="setting-budget" class="form-input" placeholder="0" />
         </div>
         <div class="form-group">
           <label>Total Monthly Income (₹)</label>
-          <input type="number" id="setting-income" class="form-input" />
+          <input type="number" id="setting-income" class="form-input" placeholder="0" />
         </div>
         <button class="btn" onclick="saveSettings()">Save Settings</button>
       </div>
@@ -493,13 +485,13 @@
       </div>
     </div>
 
-    <!-- ADD EXPENSE MODAL / FORM -->
+    <!-- ADD EXPENSE FORM -->
     <div id="tab-add" class="tab-content">
       <div class="card">
         <div class="section-title">Record New Transaction</div>
         <div class="form-group">
           <label>Amount (₹)</label>
-          <input type="number" id="new-amount" class="form-input" placeholder="e.g. 150" />
+          <input type="number" id="new-amount" class="form-input" placeholder="0" />
         </div>
         <div class="form-group">
           <label>Category</label>
@@ -526,7 +518,7 @@
         </div>
         <div class="form-group">
           <label>Description</label>
-          <input type="text" id="new-desc" class="form-input" placeholder="e.g. Canteen lunch" />
+          <input type="text" id="new-desc" class="form-input" placeholder="e.g. Lunch, Grocery" />
         </div>
         <div class="form-group">
           <label>Date</label>
@@ -560,18 +552,14 @@
 
   <script>
     const STORAGE_KEY = 'rupeetrack_data';
+    
+    // Initial state set to empty / zero
     let appData = {
       theme: 'light',
-      income: 25000,
-      budget: 15000,
-      transactions: [
-        { id: 1, amount: 180, category: 'Food', method: 'UPI', desc: 'College Canteen', date: new Date().toISOString().split('T')[0] },
-        { id: 2, amount: 70, category: 'Travel', method: 'Cash', desc: 'Auto Rickshaw', date: new Date().toISOString().split('T')[0] }
-      ],
-      friends: [
-        { id: 1, name: 'Rahul', amount: 500, type: 'receive' },
-        { id: 2, name: 'Amit', amount: 300, type: 'pay' }
-      ]
+      income: 0,
+      budget: 0,
+      transactions: [],
+      friends: []
     };
 
     let selectedFilterCategory = 'ALL';
@@ -580,7 +568,9 @@
     function init() {
       const local = localStorage.getItem(STORAGE_KEY);
       if (local) {
-        try { appData = JSON.parse(local); } catch(e) {}
+        try { 
+          appData = JSON.parse(local); 
+        } catch(e) {}
       }
       document.getElementById('new-date').value = new Date().toISOString().split('T')[0];
       applyTheme(appData.theme || 'light');
@@ -614,27 +604,29 @@
 
       if (tabName === 'analytics') renderAnalytics();
       if (tabName === 'settings') {
-        document.getElementById('setting-budget').value = appData.budget;
-        document.getElementById('setting-income').value = appData.income;
+        document.getElementById('setting-budget').value = appData.budget || '';
+        document.getElementById('setting-income').value = appData.income || '';
       }
     }
 
     function updateAll() {
       const totalExpense = appData.transactions.reduce((acc, cur) => acc + Number(cur.amount), 0);
-      const remainingBalance = appData.income - totalExpense;
-      const budgetLeft = appData.budget - totalExpense;
-      const budgetPercent = Math.min(100, Math.round((totalExpense / (appData.budget || 1)) * 100));
+      const remainingBalance = (appData.income || 0) - totalExpense;
+      const budgetLeft = (appData.budget || 0) - totalExpense;
+      const budgetPercent = appData.budget > 0 
+        ? Math.min(100, Math.round((totalExpense / appData.budget) * 100)) 
+        : 0;
 
       const toReceive = appData.friends.filter(f => f.type === 'receive').reduce((acc, cur) => acc + Number(cur.amount), 0);
       const toPay = appData.friends.filter(f => f.type === 'pay').reduce((acc, cur) => acc + Number(cur.amount), 0);
 
       document.getElementById('dash-balance').innerText = `₹${remainingBalance.toLocaleString('en-IN')}`;
-      document.getElementById('dash-income').innerText = `₹${appData.income.toLocaleString('en-IN')}`;
+      document.getElementById('dash-income').innerText = `₹${(appData.income || 0).toLocaleString('en-IN')}`;
       document.getElementById('dash-month-spent').innerText = `₹${totalExpense.toLocaleString('en-IN')}`;
       document.getElementById('dash-friends-receive').innerText = `₹${toReceive.toLocaleString('en-IN')}`;
       document.getElementById('dash-friends-pay').innerText = `₹${toPay.toLocaleString('en-IN')}`;
       
-      document.getElementById('budget-ratio').innerText = `₹${totalExpense.toLocaleString('en-IN')} / ₹${appData.budget.toLocaleString('en-IN')}`;
+      document.getElementById('budget-ratio').innerText = `₹${totalExpense.toLocaleString('en-IN')} / ₹${(appData.budget || 0).toLocaleString('en-IN')}`;
       document.getElementById('budget-remaining-txt').innerText = `Remaining: ₹${budgetLeft.toLocaleString('en-IN')}`;
 
       const bar = document.getElementById('budget-progress');
@@ -650,7 +642,7 @@
       const container = document.getElementById('recent-transactions-list');
       const list = [...appData.transactions].reverse().slice(0, 5);
       if (list.length === 0) {
-        container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding:10px;">No transactions recorded.</p>`;
+        container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding:10px;">No transactions recorded yet.</p>`;
         return;
       }
       container.innerHTML = list.map(tx => `
@@ -678,7 +670,7 @@
       });
 
       if (filtered.length === 0) {
-        container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding:10px;">No matching records found.</p>`;
+        container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding:10px;">No expenses recorded yet.</p>`;
         return;
       }
 
@@ -702,7 +694,7 @@
     function renderFriends() {
       const container = document.getElementById('friends-ledger-list');
       if (appData.friends.length === 0) {
-        container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding:10px;">No friend debts active.</p>`;
+        container.innerHTML = `<p style="font-size:0.85rem; color:var(--text-muted); text-align:center; padding:10px;">No friends records added yet.</p>`;
         return;
       }
       container.innerHTML = appData.friends.map(f => `
@@ -731,13 +723,18 @@
 
       if (chartInstance) chartInstance.destroy();
 
+      if (labels.length === 0) {
+        labels.push('No Expenses');
+        data.push(1);
+      }
+
       chartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
           labels: labels,
           datasets: [{
             data: data,
-            backgroundColor: ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#64748b']
+            backgroundColor: labels[0] === 'No Expenses' ? ['#cbd5e1'] : ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#64748b']
           }]
         },
         options: {
@@ -756,7 +753,7 @@
       const desc = document.getElementById('new-desc').value;
       const date = document.getElementById('new-date').value;
 
-      if (!amount || amount <= 0) return alert('Enter a valid amount');
+      if (!amount || Number(amount) <= 0) return alert('Please enter a valid amount');
 
       appData.transactions.push({
         id: Date.now(),
@@ -783,7 +780,7 @@
       const amount = document.getElementById('friend-amount').value;
       const type = document.getElementById('friend-type').value;
 
-      if (!name || !amount) return alert('Please enter both name and amount.');
+      if (!name || !amount || Number(amount) <= 0) return alert('Please enter both name and a valid amount.');
 
       appData.friends.push({
         id: Date.now(),
@@ -806,7 +803,7 @@
       appData.budget = parseFloat(document.getElementById('setting-budget').value) || 0;
       appData.income = parseFloat(document.getElementById('setting-income').value) || 0;
       saveState();
-      alert('Settings updated!');
+      alert('Settings saved!');
     }
 
     function exportDataCSV() {
